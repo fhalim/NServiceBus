@@ -13,6 +13,7 @@
     using NLog;
     using NLog.Targets;
     using NUnit.Framework;
+    using Routing;
     using Unicast.Transport;
 
     public abstract class ClusteredTestContext
@@ -30,7 +31,7 @@
 
         readonly string rabbitMqCtl = "rabbitmqctl.bat";//make sure that you have the PATH environment variable setup
         readonly string rabbitMqServer = "rabbitmq-server.bat";//make sure that you have the PATH environment variable setup
-
+        private readonly string HomeDrive = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         RabbitMqConnectionManager connectionManager;
         RabbitMqDequeueStrategy dequeueStrategy;
         protected int[] erlangProcessesRunningBeforeTheTest;
@@ -62,20 +63,21 @@
             Dictionary<string,string> envVars = new Dictionary<string,string>
                 {
                     {"RABBITMQ_NODENAME", node.Name},
+                    {"HOMEDRIVE", HomeDrive},
                     {"RABBITMQ_NODE_PORT", node.Port.ToString(CultureInfo.InvariantCulture)},
-                    {"RABBITMQ_SERVER_START_ARGS", string.Format("-rabbitmq_management listener [{{port,{0}}}]", node.MgmtPort)},
+                    {"RABBITMQ_SERVER_START_ARGS", string.Format("-detached -rabbitmq_management listener [{{port,{0}}}]", node.MgmtPort)},
                 };
 
-            InvokeExternalProgram(rabbitMqServer, "-detached", envVars);
+            InvokeExternalProgram(rabbitMqServer, "", envVars);
         }
 
         protected void InvokeRabbitMqCtl(RabbitNode node, string cmd) {
             var args = (string.Format("-n {0} {1}", node.Name, cmd));
-            InvokeExternalProgram(rabbitMqCtl, args);
+            InvokeExternalProgram(rabbitMqCtl, args, new Dictionary<string, string> { { "HOMEDRIVE", HomeDrive } });
         }
 
         static void InvokeExternalProgram(string program, string args, Dictionary<string,string> customEnvVars = null) {
-            ProcessStartInfo startInfo = new ProcessStartInfo {UseShellExecute = false, RedirectStandardOutput = true, FileName = program, Arguments = args,CreateNoWindow = true,WindowStyle = ProcessWindowStyle.Hidden};
+            ProcessStartInfo startInfo = new ProcessStartInfo { WorkingDirectory = @"C:\Program Files (x86)\RabbitMQ Server\rabbitmq_server-3.1.0\sbin", UseShellExecute = false, RedirectStandardOutput = true, FileName = program, Arguments = args, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden };
             var environmentVariables = startInfo.EnvironmentVariables;
 
             if (customEnvVars != null) {
@@ -103,11 +105,25 @@
         public void TestContextFixtureSetup() {
             SetupNLog(LogLevel.Trace);
             Logger.Trace("Running TestContextFixtureSetup");
+            InitializeHomeDrive();
             CaptureExistingErlangProcesses();
             StartUpRabbitNodes();
             ClusterRabbitNodes();
             SetHAPolicy();
             Logger.Fatal("RabbitMQ cluster setup complete");
+        }
+
+        void InitializeHomeDrive()
+        {
+            if (!Directory.Exists(HomeDrive))
+            {
+                Directory.CreateDirectory(HomeDrive);
+            }
+        }
+
+        void DropHomeDrive()
+        {
+            try {Directory.Delete(HomeDrive, true);}catch{}
         }
 
         [TestFixtureTearDown]
@@ -121,6 +137,7 @@
 
             var erlangProcessesToKill = GetExistingErlangProcesses().Select(p => p.Id).Except(erlangProcessesRunningBeforeTheTest).ToList();
             erlangProcessesToKill.ForEach(id => Process.GetProcessById(id).Kill());
+            DropHomeDrive();
         }
 
         void ClusterRabbitNodes() {
@@ -221,7 +238,8 @@
 
         void SetupMessageSender() {
             unitOfWork = new RabbitMqUnitOfWork {ConnectionManager = connectionManager};
-            sender = new RabbitMqMessageSender {UnitOfWork = unitOfWork};
+            sender = new RabbitMqMessageSender {UnitOfWork = unitOfWork, RoutingTopology = new ConventionalRoutingTopology()};
+            //sender = new RabbitMqMessageSender {UnitOfWork = unitOfWork, RoutingTopology = new DirectRoutingTopology()};
         }
 
         static RabbitMqConnectionManager SetupRabbitMqConnectionManager(string connectionString) {
