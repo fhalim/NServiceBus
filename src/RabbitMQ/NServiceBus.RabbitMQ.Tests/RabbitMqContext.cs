@@ -67,7 +67,7 @@
             receivedMessages = new BlockingCollection<TransportMessage>();
 
             var config = new ConnectionConfiguration();
-            config.ParseHosts("localhost:5672");
+            config.PopulateHosts("localhost:5672");
             
             var selectionStrategy = new DefaultClusterHostSelectionStrategy<ConnectionFactoryInfo>();
             var connectionFactory = new ConnectionFactoryWrapper(config, selectionStrategy);

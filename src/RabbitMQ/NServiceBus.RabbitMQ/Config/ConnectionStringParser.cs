@@ -29,7 +29,11 @@ namespace NServiceBus.Transports.RabbitMQ.Config
                     pair.Property.SetValue(connectionConfiguration, TypeDescriptor.GetConverter(pair.Property.PropertyType).ConvertFromString(pair.Value),null);
 
                 if (ContainsKey("host"))
-                    connectionConfiguration.ParseHosts(this["host"] as string);
+                    connectionConfiguration.PopulateHosts(this["host"] as string);
+
+
+                if (ContainsKey("failoverHost"))
+                    connectionConfiguration.PopulateFailoverHosts(this["failoverHost"] as string);
 
                 connectionConfiguration.Validate();
                 return connectionConfiguration;

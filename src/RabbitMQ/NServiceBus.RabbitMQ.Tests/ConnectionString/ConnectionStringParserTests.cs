@@ -21,7 +21,7 @@
         IConnectionConfiguration connectionConfiguration;
 
         const string connectionString =
-            "virtualHost=Copa;username=Copa;host=192.168.1.1:1234,192.168.1.2:2345;password=abc_xyz;port=12345;requestedHeartbeat=3;prefetchcount=2;maxRetries=4;usePublisherConfirms=true;maxWaitTimeForConfirms=02:03:39;retryDelay=01:02:03";
+            "virtualHost=Copa;username=Copa;host=192.168.1.1:1234,192.168.1.2:2345;failoverhost=127.0.0.1:4231;password=abc_xyz;port=12345;requestedHeartbeat=3;prefetchcount=2;maxRetries=4;usePublisherConfirms=true;maxWaitTimeForConfirms=02:03:39;retryDelay=01:02:03";
 
         [Test]
         public void Should_correctly_parse_full_connection_string() {
@@ -31,6 +31,9 @@
             Assert.AreEqual(connectionConfiguration.Hosts.First().Port, 1234);
             Assert.AreEqual(connectionConfiguration.Hosts.Last().Host, "192.168.1.2");
             Assert.AreEqual(connectionConfiguration.Hosts.Last().Port, 2345);
+            Assert.AreEqual(1, connectionConfiguration.FailoverHosts.Count());
+            Assert.AreEqual("127.0.0.1", connectionConfiguration.FailoverHosts.First().Host);
+            Assert.AreEqual(4231, connectionConfiguration.FailoverHosts.First().Port);
             Assert.AreEqual(connectionConfiguration.VirtualHost, "Copa");
             Assert.AreEqual(connectionConfiguration.UserName, "Copa");
             Assert.AreEqual(connectionConfiguration.Password, "abc_xyz");

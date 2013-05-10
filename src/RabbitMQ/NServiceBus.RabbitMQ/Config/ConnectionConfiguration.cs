@@ -18,6 +18,7 @@ namespace NServiceBus.Transports.RabbitMQ.Config
         public static TimeSpan DefaultWaitTimeForConfirms = TimeSpan.FromSeconds(30);
         IDictionary<string, string> clientProperties = new Dictionary<string, string>();
         IEnumerable<IHostConfiguration> hosts= new List<IHostConfiguration>();
+        IEnumerable<IHostConfiguration> failoverHosts = new List<IHostConfiguration>();
 
         public ushort Port { get; set; }
         public string VirtualHost { get; set; }
@@ -37,6 +38,12 @@ namespace NServiceBus.Transports.RabbitMQ.Config
         public IEnumerable<IHostConfiguration> Hosts {
             get { return hosts; }
             private set { hosts = value; }
+        }
+
+        public IEnumerable<IHostConfiguration> FailoverHosts
+        {
+            get { return failoverHosts; }
+            private set { failoverHosts = value; }
         }
 
         public ConnectionConfiguration()
@@ -89,15 +96,25 @@ namespace NServiceBus.Transports.RabbitMQ.Config
             }
         }
 
-        public void ParseHosts(string hostsConnectionString)
+        public void PopulateHosts(string hostsConnectionString)
+        {
+            hosts = ParseHosts(hostsConnectionString);
+        }
+
+        private IEnumerable<IHostConfiguration> ParseHosts(string hostsConnectionString)
         {
             var hostsAndPorts = hostsConnectionString.Split(',');
-            hosts = (from hostAndPort in hostsAndPorts
+            return (from hostAndPort in hostsAndPorts
                     select hostAndPort.Split(':') into hostParts
                     let host = hostParts.ElementAt(0)
                     let portString = hostParts.ElementAtOrDefault(1)
                     let port = (portString == null) ? Port : ushort.Parse(portString)
                     select new HostConfiguration { Host = host, Port = port }).ToList();
+        }
+
+        public void PopulateFailoverHosts(string hostsConnectionString)
+        {
+            failoverHosts = ParseHosts(hostsConnectionString);
         }
 
     }
