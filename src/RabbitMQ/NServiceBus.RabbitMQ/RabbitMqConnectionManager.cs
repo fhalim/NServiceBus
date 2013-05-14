@@ -23,7 +23,7 @@
                 if (connectionFailed)
                     throw connectionFailedReason;
 
-                return connection ?? (connection = new PersistentConnection(connectionFactory, connectionConfiguration.RetryDelay));
+                return connection ?? (connection = new PersistentConnection(connectionFactory, connectionConfiguration.RetryDelay, purpose == ConnectionPurpose.Publish));
             }
         }
 

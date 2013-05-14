@@ -1,5 +1,7 @@
 namespace EasyNetQ
 {
+    using System;
+
     /// <summary>
     /// Provides a strategy for selecting a host from a list of nodes in a cluster
     /// </summary>
@@ -22,7 +24,7 @@ namespace EasyNetQ
         /// Move to the next node
         /// </summary>
         /// <returns></returns>
-        bool Next();
+        bool Next(Predicate<T> guard);
 
         /// <summary>
         /// Mark the current node as successfully connected

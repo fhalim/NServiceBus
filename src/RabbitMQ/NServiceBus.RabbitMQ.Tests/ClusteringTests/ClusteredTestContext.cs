@@ -26,7 +26,8 @@
             {
                 {1, new RabbitNode {Number = 1, Port = 5673, MgmtPort = 15673, ShouldBeRunning=true}},
                 {2, new RabbitNode {Number = 2, Port = 5674, MgmtPort = 15674, ShouldBeRunning=true}},
-                {3, new RabbitNode {Number = 3, Port = 5675, MgmtPort = 15675, ShouldBeRunning=true}}
+                {3, new RabbitNode {Number = 3, Port = 5675, MgmtPort = 15675, ShouldBeRunning=true}},
+                {4, new RabbitNode {Number = 4, Port = 5676, MgmtPort = 15676, ShouldBeRunning=false}}
             };
 
         readonly string rabbitMqCtl = "rabbitmqctl.bat";//make sure that you have the PATH environment variable setup
@@ -59,7 +60,7 @@
             return Process.GetProcessesByName(ErlangProcessName);
         }
 
-        void StartRabbitMqServer(RabbitNode node) {
+        protected void StartRabbitMqServer(RabbitNode node) {
             Dictionary<string,string> envVars = new Dictionary<string,string>
                 {
                     {"RABBITMQ_NODENAME", node.Name},
@@ -168,6 +169,8 @@
 
         void ClusterRabbitNode(int fromNodeNumber, int toNodeNumber, bool withReset = false) {
             var node = RabbitNodes[fromNodeNumber];
+            if (!node.ShouldBeRunning)
+                return;
             var clusterToNode = RabbitNodes[toNodeNumber];
             InvokeRabbitMqCtl(node, "stop_app");
             if (withReset) {
@@ -183,12 +186,17 @@
         }
 
         protected TransportMessage SendAndReceiveAMessage(out TransportMessage sentMessage) {
+            SendMessage(out sentMessage);
+            var receivedMessage = WaitForMessage();
+            return receivedMessage;
+        }
+
+        protected void SendMessage(out TransportMessage sentMessage)
+        {
             Logger.Info("Sending a message");
             var message = new TransportMessage();
             sender.Send(message, Address.Parse(QueueName));
             sentMessage = message;
-            var receivedMessage = WaitForMessage();
-            return receivedMessage;
         }
 
         static ColoredConsoleTarget GetConsoleLoggingTarget() {

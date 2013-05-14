@@ -3,6 +3,8 @@ using System.Collections.Generic;
 
 namespace EasyNetQ
 {
+    using System;
+
     /// <summary>
     /// A collection that hands out the next item until success, or until every item has been tried.
     /// </summary>
@@ -28,14 +30,13 @@ namespace EasyNetQ
             return items[currentIndex];
         }
 
-        public virtual bool Next()
+        public virtual bool Next(Predicate<T> guard)
         {
             if (currentIndex == startIndex) return false;
             if (Succeeded) return false;
 
             IncrementIndex();
-
-            return true;
+            return !guard(Current());
         }
 
         public virtual IEnumerator<T> GetEnumerator()

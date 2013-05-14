@@ -115,6 +115,10 @@ namespace NServiceBus.Transports.RabbitMQ.Config
         public void PopulateFailoverHosts(string hostsConnectionString)
         {
             failoverHosts = ParseHosts(hostsConnectionString);
+            foreach (var failoverHost in failoverHosts)
+            {
+                failoverHost.IsFailover = true;
+            }
         }
 
     }

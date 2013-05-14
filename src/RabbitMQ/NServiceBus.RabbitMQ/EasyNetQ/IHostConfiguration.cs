@@ -4,5 +4,6 @@
     {
         string Host { get; }
         ushort Port { get; }
+        bool IsFailover { get; set; }
     }
 }

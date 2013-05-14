@@ -1,7 +1,8 @@
-﻿using RabbitMQ.Client;
-
-namespace EasyNetQ
+﻿namespace EasyNetQ
 {
+    
+    using System;
+    using RabbitMQ.Client;
     using NServiceBus.Transports.RabbitMQ.Config;
 
     public interface IConnectionFactory
@@ -9,7 +10,7 @@ namespace EasyNetQ
         IConnection CreateConnection();
         IConnectionConfiguration Configuration { get; }
         IHostConfiguration CurrentHost { get; }
-        bool Next();
+        bool Next(Predicate<ConnectionFactoryInfo> guard);
         void Success();
         void Reset();
         bool Succeeded { get; }

@@ -39,6 +39,21 @@
                         ClientProperties = ConvertToHashtable(Configuration.ClientProperties)
                     }, hostConfiguration));
             }
+
+            foreach (var hostConfiguration in Configuration.Hosts.Concat(Configuration.FailoverHosts))
+            {
+                clusterHostSelectionStrategy.Add(new ConnectionFactoryInfo(new ConnectionFactory
+                {
+                    HostName = hostConfiguration.Host,
+                    Port = hostConfiguration.Port,
+                    VirtualHost = Configuration.VirtualHost,
+                    UserName = Configuration.UserName,
+                    Password = Configuration.Password,
+                    RequestedHeartbeat = Configuration.RequestedHeartbeat,
+                    ClientProperties = ConvertToHashtable(Configuration.ClientProperties)
+                }, hostConfiguration));
+            }
+
         }
 
         private static IDictionary ConvertToHashtable(IDictionary<string, string> clientProperties)
@@ -62,9 +77,9 @@
             get { return clusterHostSelectionStrategy.Current().HostConfiguration; }
         }
 
-        public virtual bool Next()
+        public virtual bool Next(Predicate<ConnectionFactoryInfo> guard)
         {
-            return clusterHostSelectionStrategy.Next();
+            return clusterHostSelectionStrategy.Next(guard);
         }
 
         public virtual void Reset()
