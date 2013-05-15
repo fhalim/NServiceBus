@@ -16,12 +16,12 @@
 
 
 
-            UnitOfWork.Add(channel =>
+            UnitOfWork.Add((channel, hostConfiguration) =>
                 {
                     var properties = RabbitMqTransportMessageExtensions.FillRabbitMqProperties(message,
                                                                                                channel.CreateBasicProperties());
 
-                    RoutingTopology.Publish(channel, eventType, message, properties);
+                    RoutingTopology.Publish(channel, eventType, hostConfiguration, message, properties);
                 });
 
             //we don't know if there was a subscriber so we just return true

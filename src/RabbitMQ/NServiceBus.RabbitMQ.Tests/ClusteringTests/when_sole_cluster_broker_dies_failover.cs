@@ -43,12 +43,15 @@
         }
 
         [Test]
-        public void it_should_be_able_to_roundtrip_a_message_when_all_nodes_are_up()
+        public void it_should_be_able_to_roundtrip_a_sent_message_when_all_nodes_are_up()
         {
             messageReceivedWhenAllNodesUp.Should().NotBeNull();
             messageReceivedWhenAllNodesUp.Id.Should().Be(messageSentWhenAllNodesUp.Id);
             InConnection("localhost:5676", (connection, model) =>
-                { GetFirstMessage(model, QueueName).Should().NotBeNull(); });
+                {
+                    var firstMessage = GetFirstMessage(model, "failoverqueue");
+                    firstMessage.Should().NotBeNull();
+                });
         }
 
         static void InConnection(string hostname, Action<IConnection, IModel> callback)

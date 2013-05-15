@@ -7,6 +7,7 @@
     using NServiceBus;
     using NUnit.Framework;
     using RabbitMQ;
+    using RabbitMQ.Routing;
     using Routing;
     using global::RabbitMQ.Client;
     using TransactionSettings = Unicast.Transport.TransactionSettings;

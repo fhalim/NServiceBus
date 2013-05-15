@@ -14,7 +14,7 @@
             this.connectionConfiguration = connectionConfiguration;
         }
 
-        public IConnection GetConnection(ConnectionPurpose purpose)
+        public IPersistentConnection GetConnection(ConnectionPurpose purpose)
         {
             //note: The purpose is there so that we/users can add more advanced connection managers in the future
 

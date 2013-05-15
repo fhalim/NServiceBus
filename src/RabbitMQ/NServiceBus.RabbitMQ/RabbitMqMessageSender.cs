@@ -7,10 +7,10 @@
         public IRoutingTopology RoutingTopology { get; set; }
         public void Send(TransportMessage message, Address address)
         {
-            UnitOfWork.Add(channel =>
+            UnitOfWork.Add((channel, hostConfiguration) =>
                 {
                     var properties = RabbitMqTransportMessageExtensions.FillRabbitMqProperties(message,channel.CreateBasicProperties());
-                    RoutingTopology.Send(channel, address, message, properties);
+                    RoutingTopology.Send(channel, address, hostConfiguration, message, properties);
                 });
         }
 

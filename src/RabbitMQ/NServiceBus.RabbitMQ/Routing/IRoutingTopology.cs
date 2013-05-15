@@ -1,6 +1,7 @@
 ﻿namespace NServiceBus.Transports.RabbitMQ.Routing
 {
     using System;
+    using EasyNetQ;
     using global::RabbitMQ.Client;
 
     /// <summary>
@@ -13,8 +14,9 @@
         /// </summary>
         /// <param name="channel">RabbitMQ channel to operate on</param>
         /// <param name="type">Type to handle with subscriber</param>
+        /// <param name="hostConfiguration"></param>
         /// <param name="subscriberName">Subscriber name</param>
-        void SetupSubscription(IModel channel, Type type, string subscriberName);
+        void SetupSubscription(IModel channel, Type type, IHostConfiguration hostConfiguration, string subscriberName);
         /// <summary>
         /// Stop subscription for subscriber to the specified type
         /// </summary>
@@ -22,21 +24,25 @@
         /// <param name="type">Type to handle with subscriber</param>
         /// <param name="subscriberName">Subscriber name</param>
         void TeardownSubscription(IModel channel, Type type, string subscriberName);
+
         /// <summary>
         /// Publish message of the specified type
         /// </summary>
         /// <param name="channel">RabbitMQ channel to operate on</param>
         /// <param name="type">Type to handle with subscriber</param>
+        /// <param name="hostConfiguration"></param>
         /// <param name="message">Message to publish</param>
         /// <param name="properties">RabbitMQ properties of the message to publish</param>
-        void Publish(IModel channel, Type type, TransportMessage message, IBasicProperties properties);
+        void Publish(IModel channel, Type type, IHostConfiguration hostConfiguration, TransportMessage message, IBasicProperties properties);
+
         /// <summary>
         /// Send message to the specified endpoint
         /// </summary>
         /// <param name="channel"></param>
         /// <param name="address"></param>
+        /// <param name="hostConfiguration"></param>
         /// <param name="message"></param>
         /// <param name="properties"></param>
-        void Send(IModel channel, Address address, TransportMessage message, IBasicProperties properties);
+        void Send(IModel channel, Address address, IHostConfiguration hostConfiguration, TransportMessage message, IBasicProperties properties);
     }
 }

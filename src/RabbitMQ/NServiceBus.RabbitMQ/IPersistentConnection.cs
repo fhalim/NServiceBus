@@ -1,6 +1,7 @@
 namespace NServiceBus.Transports.RabbitMQ
 {
     using System;
+    using EasyNetQ;
     using global::RabbitMQ.Client;
 
     public interface IPersistentConnection
@@ -9,5 +10,6 @@ namespace NServiceBus.Transports.RabbitMQ
         event Action Disconnected;
         bool IsConnected { get; }
         IModel CreateModel();
+        IHostConfiguration HostConfiguration { get; }
     }
 }

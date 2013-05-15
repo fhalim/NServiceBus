@@ -231,6 +231,8 @@ namespace NServiceBus.Transports.RabbitMQ
             get { return connection.CloseReason; }
         }
 
+        public IHostConfiguration HostConfiguration { get { return connectionFactory.CurrentHost; } }
+
         public bool IsOpen
         {
             get { return connection.IsOpen; }

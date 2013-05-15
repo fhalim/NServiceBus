@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Concurrent;
     using System.Linq;
+    using EasyNetQ;
     using Settings;
     using global::RabbitMQ.Client;
 
@@ -23,29 +24,42 @@
     /// </summary>
     public class ConventionalRoutingTopology : IRoutingTopology
     {
-        public void SetupSubscription(IModel channel, Type type, string subscriberName)
+        public const string FailoverUpstreamExchangeName = "nsbfailoverupsteam";
+        public const string FailoverDownstreamExchangeName = "nsbfailoverdownstream";
+
+        public void SetupSubscription(IModel channel, Type type, IHostConfiguration hostConfiguration, string subscriberName)
         {
-            CreateQueueAndExchangeForSubscriber(channel, subscriberName);
+            CreateQueueAndExchangeForSubscriber(channel, subscriberName, hostConfiguration);
             if (type == typeof(IEvent))
             {
                 // Make handlers for IEvent handle all events whether they extend IEvent or not
                 type = typeof(object);
             }
-            SetupTypeSubscriptions(channel, type);
+            SetupTypeSubscriptions(channel, type, hostConfiguration);
             channel.ExchangeBind(subscriberName, ExchangeName(type), string.Empty);
         }
 
-        void CreateQueueAndExchangeForSubscriber(IModel channel, string subscriberName)
+        void CreateQueueAndExchangeForSubscriber(IModel channel, string subscriberName, IHostConfiguration hostConfiguration)
         {
-            if (endpointSubscriptionConfiguredSet.ContainsKey(subscriberName))
+            if (endpointSubscriptionConfiguredSet.ContainsKey(Tuple.Create(subscriberName, hostConfiguration)))
             {
                 return;
             }
-            CreateQueue(channel, subscriberName);
             CreateExchange(channel, subscriberName);
-            channel.QueueBind(subscriberName, subscriberName, string.Empty);
-            //endpointSubscriptionConfiguredSet[subscriberName] = null;
+            if (hostConfiguration.IsFailover)
+            {
+                SetupFailoverUpstreamSubscription(channel, subscriberName);
+            }
+            else
+            {
+                CreateQueue(channel, subscriberName);
+                channel.QueueBind(subscriberName, subscriberName, string.Empty);
+            }
+            
+            endpointSubscriptionConfiguredSet[Tuple.Create(subscriberName, hostConfiguration)] = null;
         }
+
+        
 
         public void TeardownSubscription(IModel channel, Type type, string subscriberName)
         {
@@ -59,21 +73,21 @@
             }
         }
 
-        public void Publish(IModel channel, Type type, TransportMessage message, IBasicProperties properties)
+        public void Publish(IModel channel, Type type, IHostConfiguration hostConfiguration, TransportMessage message, IBasicProperties properties)
         {
-            SetupTypeSubscriptions(channel, type);
+            SetupTypeSubscriptions(channel, type, hostConfiguration);
             channel.BasicPublish(ExchangeName(type), String.Empty, true, false, properties, message.Body);
         }
 
-        public void Send(IModel channel, Address address, TransportMessage message, IBasicProperties properties)
+        public void Send(IModel channel, Address address, IHostConfiguration hostConfiguration, TransportMessage message, IBasicProperties properties)
         {
             var subscriberName = address.Queue;
-            CreateQueueAndExchangeForSubscriber(channel, subscriberName);
+            CreateQueueAndExchangeForSubscriber(channel, subscriberName, hostConfiguration);
             channel.BasicPublish(subscriberName, String.Empty, true, false, properties, message.Body);
         }
 
-        private readonly ConcurrentDictionary<Type, string> typeTopologyConfiguredSet = new ConcurrentDictionary<Type, string>();
-        private readonly ConcurrentDictionary<string, string> endpointSubscriptionConfiguredSet = new ConcurrentDictionary<string, string>();
+        private readonly ConcurrentDictionary<Tuple<Type, IHostConfiguration>, string> typeTopologyConfiguredSet = new ConcurrentDictionary<Tuple<Type, IHostConfiguration>, string>();
+        private readonly ConcurrentDictionary<Tuple<string, IHostConfiguration>, string> endpointSubscriptionConfiguredSet = new ConcurrentDictionary<Tuple<string, IHostConfiguration>, string>();
 
         private static string ExchangeName(Type type)
         {
@@ -105,15 +119,23 @@
             }
         }
 
-        private void SetupTypeSubscriptions(IModel channel, Type type)
+        private void SetupTypeSubscriptions(IModel channel, Type type, IHostConfiguration hostConfiguration)
         {
-            if (type == typeof(Object) || IsTypeTopologyKnownConfigured(type))
+            if (type == typeof(Object) || IsTypeTopologyKnownConfigured(type, hostConfiguration))
             {
                 return;
             }
             {
                 var typeToProcess = type;
                 CreateExchange(channel, ExchangeName(typeToProcess));
+                if (hostConfiguration.IsFailover)
+                {
+                    SetupFailoverUpstreamSubscription(channel, type);
+                }
+                else
+                {
+                    SetupFailoverDownstreamSubscription(channel, type);
+                }
                 var baseType = typeToProcess.BaseType;
                 while (baseType != null)
                 {
@@ -130,17 +152,36 @@
                 channel.ExchangeBind(exchangeName, ExchangeName(type), string.Empty);
 
             }
-            MarkTypeConfigured(type);
+            MarkTypeConfigured(type, hostConfiguration);
         }
 
-        private void MarkTypeConfigured(Type eventType)
+        static void SetupFailoverDownstreamSubscription(IModel channel, Type type)
         {
-            //typeTopologyConfiguredSet[eventType] = null;
+            CreateExchange(channel, FailoverDownstreamExchangeName);
+            channel.ExchangeBind(ExchangeName(type), FailoverDownstreamExchangeName, DefaultRoutingKeyConvention.GenerateRoutingKey(type));
         }
 
-        private bool IsTypeTopologyKnownConfigured(Type eventType)
+        static void SetupFailoverUpstreamSubscription(IModel channel, Type type)
         {
-            return typeTopologyConfiguredSet.ContainsKey(eventType);
+            var exchangeName = ExchangeName(type);
+            SetupFailoverUpstreamSubscription(channel, exchangeName);
+            
+        }
+
+        static void SetupFailoverUpstreamSubscription(IModel channel, string exchangeName)
+        {
+            CreateExchange(channel, FailoverUpstreamExchangeName);
+            channel.ExchangeBind(FailoverUpstreamExchangeName, exchangeName, String.Empty);
+        }
+
+        private void MarkTypeConfigured(Type eventType, IHostConfiguration hostConfiguration)
+        {
+            typeTopologyConfiguredSet[Tuple.Create(eventType, hostConfiguration)] = null;
+        }
+
+        private bool IsTypeTopologyKnownConfigured(Type eventType, IHostConfiguration hostConfiguration)
+        {
+            return typeTopologyConfiguredSet.ContainsKey(Tuple.Create(eventType, hostConfiguration));
         }
     }
 }

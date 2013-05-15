@@ -1,6 +1,7 @@
 ﻿namespace NServiceBus.Transports.RabbitMQ.Routing
 {
     using System;
+    using EasyNetQ;
     using global::RabbitMQ.Client;
 
     /// <summary>
@@ -12,7 +13,7 @@
 
         public Func<Type, string> RoutingKeyConvention { get; set; }
 
-        public void SetupSubscription(IModel channel, Type type, string subscriberName)
+        public void SetupSubscription(IModel channel, Type type, IHostConfiguration hostConfiguration, string subscriberName)
         {
             CreateExchange(channel, ExchangeName());
             channel.QueueBind(subscriberName, ExchangeName(), GetRoutingKeyForBinding(type));
@@ -23,12 +24,12 @@
             channel.QueueUnbind(subscriberName, ExchangeName(), GetRoutingKeyForBinding(type), null);
         }
 
-        public void Publish(IModel channel, Type type, TransportMessage message, IBasicProperties properties)
+        public void Publish(IModel channel, Type type, IHostConfiguration hostConfiguration, TransportMessage message, IBasicProperties properties)
         {
             channel.BasicPublish(ExchangeName(), GetRoutingKeyForPublish(type), true, false, properties, message.Body);
         }
 
-        public void Send(IModel channel, Address address, TransportMessage message, IBasicProperties properties)
+        public void Send(IModel channel, Address address, IHostConfiguration hostConfiguration, TransportMessage message, IBasicProperties properties)
         {
             channel.BasicPublish(string.Empty, address.Queue, true, false, properties, message.Body);
         }

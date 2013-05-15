@@ -13,6 +13,7 @@
     using NLog;
     using NLog.Targets;
     using NUnit.Framework;
+    using RabbitMQ.Routing;
     using Routing;
     using Settings;
     using TransactionSettings = Unicast.Transport.TransactionSettings;

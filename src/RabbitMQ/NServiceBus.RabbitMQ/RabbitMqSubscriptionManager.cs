@@ -13,9 +13,10 @@
 
         public void Subscribe(Type eventType, Address publisherAddress)
         {
-            using (var channel = ConnectionManager.GetConnection(ConnectionPurpose.Administration).CreateModel())
+            var connection = ConnectionManager.GetConnection(ConnectionPurpose.Administration);
+            using (var channel = connection.CreateModel())
             {
-                RoutingTopology.SetupSubscription(channel, eventType, EndpointQueueName);
+                RoutingTopology.SetupSubscription(channel, eventType, connection.HostConfiguration, EndpointQueueName);
             }
         }
 

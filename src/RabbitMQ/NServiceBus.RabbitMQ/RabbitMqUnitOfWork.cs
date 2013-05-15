@@ -4,6 +4,7 @@
     using System.Collections.Generic;
     using System.Linq;
     using System.Transactions;
+    using EasyNetQ;
     using global::RabbitMQ.Client;
 
     public class RabbitMqUnitOfWork
@@ -20,7 +21,7 @@
         /// </summary>
         public TimeSpan MaxWaitTimeForConfirms { get; set; }
 
-        public void Add(Action<IModel> action)
+        public void Add(Action<IModel, IHostConfiguration> action)
         {
             var transaction = Transaction.Current;
 
@@ -36,7 +37,7 @@
             if (!OutstandingOperations.ContainsKey(transactionId))
             {
                 transaction.TransactionCompleted += ExecuteActionsAgainstRabbitMq;
-                OutstandingOperations.Add(transactionId, new List<Action<IModel>> { action });
+                OutstandingOperations.Add(transactionId, new List<Action<IModel, IHostConfiguration>> { action });
                 return;
             }
 
@@ -68,10 +69,12 @@
             OutstandingOperations.Clear();
         }
 
-        void ExecuteRabbitMqActions(IList<Action<IModel>> actions)
+        void ExecuteRabbitMqActions(IEnumerable<Action<IModel, IHostConfiguration>> actions)
         {
-            using (var channel = ConnectionManager.GetConnection(ConnectionPurpose.Publish).CreateModel())
+            var connection = ConnectionManager.GetConnection(ConnectionPurpose.Publish);
+            using (var channel = connection.CreateModel())
             {
+                var host = connection.HostConfiguration;
                 if (UsePublisherConfirms)
                 {
                     channel.ConfirmSelect();
@@ -80,7 +83,7 @@
 
                 foreach (var action in actions)
                 {
-                    action(channel);
+                    action(channel, host);
                 }
 
                 channel.WaitForConfirmsOrDie(MaxWaitTimeForConfirms);
@@ -88,17 +91,17 @@
         }
 
 
-        IDictionary<string, IList<Action<IModel>>> OutstandingOperations
+        IDictionary<string, IList<Action<IModel, IHostConfiguration>>> OutstandingOperations
         {
             get
             {
-                return outstandingOperations ?? (outstandingOperations = new Dictionary<string, IList<Action<IModel>>>());
+                return outstandingOperations ?? (outstandingOperations = new Dictionary<string, IList<Action<IModel, IHostConfiguration>>>());
             }
         }
 
 
         //we use a dictionary to make sure that actions from other tx doesn't spill over if threads are getting reused by the hosting infrastrcture
         [ThreadStatic]
-        static IDictionary<string, IList<Action<IModel>>> outstandingOperations;
+        static IDictionary<string, IList<Action<IModel, IHostConfiguration>>> outstandingOperations;
     }
 }
