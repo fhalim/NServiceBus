@@ -14,7 +14,8 @@
     using NLog.Targets;
     using NUnit.Framework;
     using Routing;
-    using Unicast.Transport;
+    using Settings;
+    using TransactionSettings = Unicast.Transport.TransactionSettings;
 
     public abstract class ClusteredTestContext
     {
@@ -39,7 +40,10 @@
         BlockingCollection<TransportMessage> receivedMessages;
         RabbitMqMessageSender sender;
         RabbitMqUnitOfWork unitOfWork;
-
+        private void InitializeSettings()
+        {
+            SettingsHolder.SetDefault("Endpoint.DurableMessages", true);
+        }
         protected class RabbitNode
         {
             public static readonly string LocalHostName = Environment.MachineName;
@@ -106,6 +110,7 @@
         public void TestContextFixtureSetup() {
             SetupNLog(LogLevel.Trace);
             Logger.Trace("Running TestContextFixtureSetup");
+            InitializeSettings();
             InitializeHomeDrive();
             CaptureExistingErlangProcesses();
             StartUpRabbitNodes();
@@ -247,7 +252,6 @@
         void SetupMessageSender() {
             unitOfWork = new RabbitMqUnitOfWork {ConnectionManager = connectionManager};
             sender = new RabbitMqMessageSender {UnitOfWork = unitOfWork, RoutingTopology = new ConventionalRoutingTopology()};
-            //sender = new RabbitMqMessageSender {UnitOfWork = unitOfWork, RoutingTopology = new DirectRoutingTopology()};
         }
 
         static RabbitMqConnectionManager SetupRabbitMqConnectionManager(string connectionString) {

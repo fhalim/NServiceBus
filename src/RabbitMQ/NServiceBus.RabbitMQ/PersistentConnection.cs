@@ -26,7 +26,7 @@ namespace NServiceBus.Transports.RabbitMQ
             {
                 connectionGuard = h => h.HostConfiguration.IsFailover;
             }
-            TryToConnect(null);
+            TryToConnect(new AutoResetEvent(false), null);
         }
 
         public event Action Connected;
@@ -43,9 +43,11 @@ namespace NServiceBus.Transports.RabbitMQ
 
         bool InitializeConnection()
         {
+            var evt = new AutoResetEvent(false);
             if (IsConnected)
                 return true;
-            StartTryToConnect();
+            StartTryToConnect(evt);
+            evt.WaitOne(connectionCreationTimeout);
             return IsConnected;
         }
 
@@ -67,13 +69,13 @@ namespace NServiceBus.Transports.RabbitMQ
         }
 
 
-        void StartTryToConnect()
+        void StartTryToConnect(EventWaitHandle evt)
         {
-            var timer = new Timer(TryToConnect);
+            var timer = new Timer(t => TryToConnect(evt, t));
             timer.Change(Convert.ToInt32(retryDelay.TotalMilliseconds), Timeout.Infinite);
         }
 
-        void TryToConnect(object timer)
+        void TryToConnect(EventWaitHandle evt, object timer)
         {
             if (timer != null)
             {
@@ -83,6 +85,7 @@ namespace NServiceBus.Transports.RabbitMQ
             Logger.Debug("Trying to connect");
             if (disposed)
             {
+                evt.Set();
                 return;
             }
 
@@ -117,8 +120,9 @@ namespace NServiceBus.Transports.RabbitMQ
             else
             {
                 Logger.ErrorFormat("Failed to connected to any Broker. Retrying in {0}", retryDelay);
-                StartTryToConnect();
+                StartTryToConnect(evt);
             }
+            evt.Set();
         }
 
         void LogException(Exception exception)
@@ -141,7 +145,7 @@ namespace NServiceBus.Transports.RabbitMQ
 
             Logger.InfoFormat("Disconnected from RabbitMQ Broker, reason: {0} , going to reconnect", reason);
 
-            TryToConnect(null);
+            TryToConnect(new AutoResetEvent(false), null);
         }
 
         public void OnConnected()
@@ -315,6 +319,7 @@ namespace NServiceBus.Transports.RabbitMQ
         IConnection connection;
         readonly IConnectionFactory connectionFactory;
         readonly TimeSpan retryDelay;
+        readonly TimeSpan connectionCreationTimeout = TimeSpan.FromSeconds(5);
         readonly Predicate<ConnectionFactoryInfo> connectionGuard;
 
         static readonly ILog Logger = LogManager.GetLogger(typeof (RabbitMqConnectionManager));

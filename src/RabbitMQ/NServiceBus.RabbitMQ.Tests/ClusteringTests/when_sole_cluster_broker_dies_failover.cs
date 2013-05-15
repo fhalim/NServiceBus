@@ -49,7 +49,6 @@
             messageReceivedWhenAllNodesUp.Id.Should().Be(messageSentWhenAllNodesUp.Id);
             InConnection("localhost:5676", (connection, model) =>
                 { GetFirstMessage(model, QueueName).Should().NotBeNull(); });
-
         }
 
         static void InConnection(string hostname, Action<IConnection, IModel> callback)

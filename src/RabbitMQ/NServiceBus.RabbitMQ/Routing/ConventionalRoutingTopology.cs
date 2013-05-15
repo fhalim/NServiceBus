@@ -44,7 +44,7 @@
             CreateQueue(channel, subscriberName);
             CreateExchange(channel, subscriberName);
             channel.QueueBind(subscriberName, subscriberName, string.Empty);
-            endpointSubscriptionConfiguredSet[subscriberName] = null;
+            //endpointSubscriptionConfiguredSet[subscriberName] = null;
         }
 
         public void TeardownSubscription(IModel channel, Type type, string subscriberName)
@@ -135,7 +135,7 @@
 
         private void MarkTypeConfigured(Type eventType)
         {
-            typeTopologyConfiguredSet[eventType] = null;
+            //typeTopologyConfiguredSet[eventType] = null;
         }
 
         private bool IsTypeTopologyKnownConfigured(Type eventType)
