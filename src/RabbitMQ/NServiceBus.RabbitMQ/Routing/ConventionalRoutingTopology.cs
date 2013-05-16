@@ -54,6 +54,7 @@
             {
                 CreateQueue(channel, subscriberName);
                 channel.QueueBind(subscriberName, subscriberName, string.Empty);
+                SetupFailoverDownstreamSubscription(channel, subscriberName, subscriberName);
             }
             
             endpointSubscriptionConfiguredSet[Tuple.Create(subscriberName, hostConfiguration)] = null;
@@ -96,9 +97,9 @@
 
         private static void CreateQueue(IModel channel, string queueName)
         {
+            var durable = SettingsHolder.Get<bool>("Endpoint.DurableMessages");
             try
             {
-                var durable = SettingsHolder.Get<bool>("Endpoint.DurableMessages");
                 channel.QueueDeclare(queueName, durable, false, false, null);
             }
             catch (Exception)
@@ -157,8 +158,13 @@
 
         static void SetupFailoverDownstreamSubscription(IModel channel, Type type)
         {
+            SetupFailoverDownstreamSubscription(channel, ExchangeName(type), DefaultRoutingKeyConvention.GenerateRoutingKey(type));
+        }
+
+        static void SetupFailoverDownstreamSubscription(IModel channel, string exchangeName, string routingKey)
+        {
             CreateExchange(channel, FailoverDownstreamExchangeName);
-            channel.ExchangeBind(ExchangeName(type), FailoverDownstreamExchangeName, DefaultRoutingKeyConvention.GenerateRoutingKey(type));
+            channel.ExchangeBind(exchangeName, FailoverDownstreamExchangeName, routingKey);
         }
 
         static void SetupFailoverUpstreamSubscription(IModel channel, Type type)
