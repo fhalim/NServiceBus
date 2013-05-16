@@ -5,6 +5,7 @@
     using System.Text;
     using FluentAssertions;
     using NUnit.Framework;
+    using RabbitMQ.Routing;
     using global::RabbitMQ.Client;
     using global::RabbitMQ.Client.Events;
 
@@ -16,6 +17,8 @@
         TransportMessage messageReceivedWhenAllNodesUp;
         TransportMessage messageSentWhenAllNodesUp;
         TransportMessage messageSentAfterClusterFailure;
+        static string upstreamQueueName = "federationupstreamqueue";
+        static readonly string failoverHostname = "localhost:5676";
 
         public when_sole_cluster_broker_dies_failover()
         {
@@ -34,12 +37,21 @@
         public void TestFixtureSetup()
         {
             // arrange
-            SetupQueueAndSenderAndListener("host=localhost:5673;failoverHost=localhost:5676");
+            SetupQueueAndSenderAndListener(String.Format("host=localhost:5673;failoverHost={0}", failoverHostname));
+            SetupFailoverUpstreamstuff();
 
             // act
             messageReceivedWhenAllNodesUp = SendAndReceiveAMessage(out messageSentWhenAllNodesUp);
             StopNode(1);
             SendMessage(out messageSentAfterClusterFailure);
+            
+        }
+
+        static void SetupFailoverUpstreamstuff()
+        {
+            InConnection(failoverHostname, (connection, model) => model.ExchangeDeclare(ConventionalRoutingTopology.FailoverUpstreamExchangeName, ExchangeType.Fanout, true));
+            InConnection(failoverHostname, (connection, model) => model.QueueDeclare(upstreamQueueName, true, false, false, null));
+            InConnection(failoverHostname, (connection, model) => model.QueueBind(upstreamQueueName, ConventionalRoutingTopology.FailoverUpstreamExchangeName, String.Empty));
         }
 
         [Test]
@@ -47,11 +59,18 @@
         {
             messageReceivedWhenAllNodesUp.Should().NotBeNull();
             messageReceivedWhenAllNodesUp.Id.Should().Be(messageSentWhenAllNodesUp.Id);
-            InConnection("localhost:5676", (connection, model) =>
-                {
-                    var firstMessage = GetFirstMessage(model, "failoverqueue");
-                    firstMessage.Should().NotBeNull();
-                });
+            
+        }
+
+        [Test]
+        public void it_should_write_message_sent_on_failover_to_upstream_federation_queue()
+        {
+            InConnection(failoverHostname, (connection, model) =>
+            {
+                var firstMessage = GetFirstMessage(model, upstreamQueueName);
+                firstMessage.Should().NotBeNull();
+                firstMessage.Item2.MessageId.Should().Be(messageSentAfterClusterFailure.Id);
+            });
         }
 
         static void InConnection(string hostname, Action<IConnection, IModel> callback)
