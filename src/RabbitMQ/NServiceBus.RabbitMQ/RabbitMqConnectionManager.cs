@@ -1,10 +1,12 @@
 ﻿namespace NServiceBus.Transports.RabbitMQ
 {
     using System;
+    using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.Linq;
     using Config;
     using EasyNetQ;
     using Logging;
-    using global::RabbitMQ.Client;
 
     public class RabbitMqConnectionManager : IDisposable, IManageRabbitMqConnections
     {
@@ -23,7 +25,7 @@
                 if (connectionFailed)
                     throw connectionFailedReason;
 
-                return connection ?? (connection = new PersistentConnection(connectionFactory, connectionConfiguration.RetryDelay, purpose == ConnectionPurpose.Publish));
+                return connections.ContainsKey(purpose) ? connections[purpose] : (connections[purpose] = new PersistentConnection(connectionFactory, connectionConfiguration.RetryDelay, purpose == ConnectionPurpose.Publish));
             }
         }
 
@@ -43,13 +45,11 @@
             if (disposing)
             {
                 // Dispose managed resources.
-                if (connection == null)
+                foreach (var connection in connections.Where(c => c.Value != null))
                 {
-                    return;
+                    connection.Value.Dispose();
+                    connections.Remove(connection.Key);
                 }
-
-                connection.Dispose();
-                connection = null;
             }
 
             disposed = true;
@@ -62,7 +62,8 @@
 
         readonly IConnectionFactory connectionFactory;
         readonly IConnectionConfiguration connectionConfiguration;
-        PersistentConnection connection;
+
+        readonly IDictionary<ConnectionPurpose, PersistentConnection> connections = new ConcurrentDictionary<ConnectionPurpose, PersistentConnection>();
         bool connectionFailed;
         Exception connectionFailedReason;
         bool disposed;

@@ -14,7 +14,6 @@
     using NLog.Targets;
     using NUnit.Framework;
     using RabbitMQ.Routing;
-    using Routing;
     using Settings;
     using TransactionSettings = Unicast.Transport.TransactionSettings;
 
@@ -170,9 +169,16 @@
         void StartUpRabbitNodes() {
             foreach (var node in RabbitNodes.Values.Where(node => node.ShouldBeRunning)) {
                 StartRabbitMqServer(node);
+                //ResetNode(node);
             }
         }
 
+        void ResetNode(RabbitNode node)
+        {
+            InvokeRabbitMqCtl(node, "stop_app");
+            InvokeRabbitMqCtl(node, "reset");
+            InvokeRabbitMqCtl(node, "start_app");
+        }
         void ClusterRabbitNode(int fromNodeNumber, int toNodeNumber, bool withReset = false) {
             var node = RabbitNodes[fromNodeNumber];
             if (!node.ShouldBeRunning)
