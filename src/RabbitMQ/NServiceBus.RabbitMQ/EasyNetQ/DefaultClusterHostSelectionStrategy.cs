@@ -32,11 +32,7 @@ namespace EasyNetQ
 
         public virtual bool Next(Predicate<T> guard)
         {
-            if (currentIndex == startIndex) return false;
-            if (Succeeded) return false;
-
-            IncrementIndex();
-            return !guard(Current());
+            return !Succeeded && IncrementIndex(guard);
         }
 
         public virtual IEnumerator<T> GetEnumerator()
@@ -72,16 +68,26 @@ namespace EasyNetQ
                 firstUse = false;
                 return;
             }
-            IncrementIndex();
+            IncrementIndex(null);
         }
 
-        private void IncrementIndex()
+        private bool IncrementIndex(Predicate<T> guard)
         {
+            var incrementSucceeded = true;
+            var reachedStart = currentIndex == startIndex;
             currentIndex++;
-            if (currentIndex == items.Count)
+            var reachedGuard = (guard != null && currentIndex < items.Count && guard(Current()));
+            if (currentIndex == items.Count || reachedGuard)
             {
                 currentIndex = 0;
             }
+            
+            if (reachedGuard || reachedStart)
+            {
+                incrementSucceeded = false;
+            }
+            
+            return incrementSucceeded;
         }
     }
 }

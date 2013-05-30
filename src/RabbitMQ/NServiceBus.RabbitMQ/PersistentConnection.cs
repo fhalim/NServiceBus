@@ -14,10 +14,11 @@ namespace NServiceBus.Transports.RabbitMQ
     /// </summary>
     public class PersistentConnection : IPersistentConnection, IConnection
     {
-        public PersistentConnection(IConnectionFactory connectionFactory, TimeSpan retryDelay, bool failover)
+        public PersistentConnection(IConnectionFactory connectionFactory, TimeSpan retryDelay, TimeSpan connectionCreationTimeout, bool failover)
         {
             this.connectionFactory = connectionFactory;
             this.retryDelay = retryDelay;
+            this.connectionCreationTimeout = connectionCreationTimeout;
             if (failover)
             {
                 connectionGuard = _ => false;
@@ -105,7 +106,7 @@ namespace NServiceBus.Transports.RabbitMQ
                 {
                     LogException(brokerUnreachableException);
                 }
-            } while (connectionFactory.Next(connectionGuard));
+            } while (!connectionFactory.Succeeded && connectionFactory.Next(connectionGuard));
 
             if (connectionFactory.Succeeded)
             {
@@ -321,7 +322,7 @@ namespace NServiceBus.Transports.RabbitMQ
         IConnection connection;
         readonly IConnectionFactory connectionFactory;
         readonly TimeSpan retryDelay;
-        readonly TimeSpan connectionCreationTimeout = TimeSpan.FromSeconds(5);
+        readonly TimeSpan connectionCreationTimeout;
         readonly Predicate<ConnectionFactoryInfo> connectionGuard;
 
         static readonly ILog Logger = LogManager.GetLogger(typeof (RabbitMqConnectionManager));

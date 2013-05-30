@@ -122,7 +122,7 @@
 
         private void SetupTypeSubscriptions(IModel channel, Type type, IHostConfiguration hostConfiguration)
         {
-            if (type == typeof(Object) || IsTypeTopologyKnownConfigured(type, hostConfiguration))
+            if (IsTypeTopologyKnownConfigured(type, hostConfiguration))
             {
                 return;
             }

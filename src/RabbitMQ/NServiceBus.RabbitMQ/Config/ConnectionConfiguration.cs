@@ -30,6 +30,7 @@ namespace NServiceBus.Transports.RabbitMQ.Config
         public bool UsePublisherConfirms { get; set; }
         public TimeSpan MaxWaitTimeForConfirms { get; set; }
         public TimeSpan RetryDelay { get; set; }
+        public TimeSpan ConnectionCreationTimeout { get; set; }
         public IDictionary<string, string> ClientProperties {
             get { return clientProperties; }
             private set { clientProperties = value; }
@@ -59,6 +60,7 @@ namespace NServiceBus.Transports.RabbitMQ.Config
             MaxWaitTimeForConfirms = DefaultWaitTimeForConfirms;
             MaxRetries = 5;
             RetryDelay = TimeSpan.FromSeconds(10);
+            ConnectionCreationTimeout = TimeSpan.FromSeconds(30);
             SetDefaultClientProperties();
         }
 

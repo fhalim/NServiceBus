@@ -17,8 +17,8 @@
         TransportMessage messageReceivedWhenAllNodesUp;
         TransportMessage messageSentWhenAllNodesUp;
         TransportMessage messageSentAfterClusterFailure;
-        static string upstreamQueueName = "federationupstreamqueue";
-        static readonly string failoverHostname = "localhost:5676";
+        const string upstreamQueueName = "federationupstreamqueue";
+        const string failoverHostname = "localhost:5676";
 
         public when_sole_cluster_broker_dies_failover()
         {

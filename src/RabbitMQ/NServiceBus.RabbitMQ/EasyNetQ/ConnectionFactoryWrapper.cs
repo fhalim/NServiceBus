@@ -26,20 +26,6 @@
 
             Configuration = connectionConfiguration;
 
-            foreach (var hostConfiguration in Configuration.Hosts)
-            {
-                clusterHostSelectionStrategy.Add(new ConnectionFactoryInfo(new ConnectionFactory
-                    {
-                        HostName = hostConfiguration.Host,
-                        Port = hostConfiguration.Port,
-                        VirtualHost = Configuration.VirtualHost,
-                        UserName = Configuration.UserName,
-                        Password = Configuration.Password,
-                        RequestedHeartbeat = Configuration.RequestedHeartbeat,
-                        ClientProperties = ConvertToHashtable(Configuration.ClientProperties)
-                    }, hostConfiguration));
-            }
-
             foreach (var hostConfiguration in Configuration.Hosts.Concat(Configuration.FailoverHosts))
             {
                 clusterHostSelectionStrategy.Add(new ConnectionFactoryInfo(new ConnectionFactory

@@ -25,7 +25,7 @@
                 if (connectionFailed)
                     throw connectionFailedReason;
 
-                return connections.ContainsKey(purpose) ? connections[purpose] : (connections[purpose] = new PersistentConnection(connectionFactory, connectionConfiguration.RetryDelay, purpose == ConnectionPurpose.Publish));
+                return connections.ContainsKey(purpose) ? connections[purpose] : (connections[purpose] = new PersistentConnection(connectionFactory, connectionConfiguration.RetryDelay, connectionConfiguration.ConnectionCreationTimeout, purpose == ConnectionPurpose.Publish));
             }
         }
 

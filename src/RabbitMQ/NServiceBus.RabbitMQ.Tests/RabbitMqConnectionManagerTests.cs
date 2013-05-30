@@ -38,6 +38,7 @@
             firstPublishConnection.Should().NotBeNull();
             firstAdminConnection.Should().NotBeNull();
             firstConsumeConnection.Should().NotBeNull();
+            firstPublishConnection.Should().BeSameAs(secondPublishConnection);
             firstPublishConnection.Should().NotBeSameAs(firstAdminConnection);
             firstPublishConnection.Should().NotBeSameAs(firstConsumeConnection);
             firstAdminConnection.Should().NotBeSameAs(firstConsumeConnection);

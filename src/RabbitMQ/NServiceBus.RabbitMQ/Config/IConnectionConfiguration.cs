@@ -18,6 +18,7 @@ namespace NServiceBus.Transports.RabbitMQ.Config
         IEnumerable<IHostConfiguration> Hosts { get; }
         IEnumerable<IHostConfiguration> FailoverHosts { get; }
         TimeSpan RetryDelay { get; set; }
+        TimeSpan ConnectionCreationTimeout { get; set; }
         bool UsePublisherConfirms { get; set; }
         TimeSpan MaxWaitTimeForConfirms { get; set; }
     }

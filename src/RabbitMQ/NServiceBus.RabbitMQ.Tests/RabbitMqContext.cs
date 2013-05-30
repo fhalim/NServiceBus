@@ -8,12 +8,15 @@
     using NUnit.Framework;
     using RabbitMQ;
     using RabbitMQ.Routing;
-    using Routing;
-    using global::RabbitMQ.Client;
+    using Settings;
     using TransactionSettings = Unicast.Transport.TransactionSettings;
 
     public class RabbitMqContext
     {
+        public RabbitMqContext()
+        {
+            SettingsHolder.SetDefault("Endpoint.DurableMessages", true);
+        }
         protected void MakeSureQueueExists(string queueName)
         {
             using (var channel = connectionManager.GetConnection(ConnectionPurpose.Administration).CreateModel())

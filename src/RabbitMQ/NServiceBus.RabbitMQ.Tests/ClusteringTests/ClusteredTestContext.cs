@@ -40,7 +40,9 @@
         BlockingCollection<TransportMessage> receivedMessages;
         RabbitMqMessageSender sender;
         RabbitMqUnitOfWork unitOfWork;
-        private void InitializeSettings()
+        static readonly IRoutingTopology RoutingTopology = new ConventionalRoutingTopology();
+
+        private static void InitializeSettings()
         {
             SettingsHolder.SetDefault("Endpoint.DurableMessages", true);
         }
@@ -107,7 +109,9 @@
         }
 
         [TestFixtureSetUp]
-        public void TestContextFixtureSetup() {
+        public void TestContextFixtureSetup()
+        {
+            KillAllErlangProcessesOwnedByMe();
             SetupNLog(LogLevel.Trace);
             Logger.Trace("Running TestContextFixtureSetup");
             InitializeSettings();
@@ -117,6 +121,16 @@
             ClusterRabbitNodes();
             SetHAPolicy();
             Logger.Fatal("RabbitMQ cluster setup complete");
+        }
+
+        void KillAllErlangProcessesOwnedByMe()
+        {
+            var currentUserName = Process.GetCurrentProcess().StartInfo.UserName;
+            foreach (var process in Process.GetProcessesByName("erl"))
+            {
+                process.Kill();
+            }
+            
         }
 
         void InitializeHomeDrive()
@@ -230,6 +244,7 @@
 
         protected void SetupQueueAndSenderAndListener(string connectionString) {
             connectionManager = SetupRabbitMqConnectionManager(connectionString);
+            
             EnsureRabbitQueueExists(QueueName);
             SetupMessageSender();
             SetupQueueListener(QueueName);
@@ -249,21 +264,22 @@
             dequeueStrategy.Start(1);
         }
 
-        void EnsureRabbitQueueExists(string queueName) {
-            using (var channel = connectionManager.GetConnection(ConnectionPurpose.Administration).CreateModel()) {
-                channel.QueueDeclare(queueName, true, false, false, null);
+        void EnsureRabbitQueueExists(string queueName)
+        {
+            var connection = connectionManager.GetConnection(ConnectionPurpose.Administration);
+            using (var channel = connection.CreateModel()) {
+                RoutingTopology.SetupSubscription(channel, typeof(object), connection.HostConfiguration, queueName);
                 channel.QueuePurge(queueName);
             }
         }
 
         void SetupMessageSender() {
             unitOfWork = new RabbitMqUnitOfWork {ConnectionManager = connectionManager};
-            sender = new RabbitMqMessageSender {UnitOfWork = unitOfWork, RoutingTopology = new ConventionalRoutingTopology()};
+            sender = new RabbitMqMessageSender {UnitOfWork = unitOfWork, RoutingTopology = RoutingTopology};
         }
 
         static RabbitMqConnectionManager SetupRabbitMqConnectionManager(string connectionString) {
             var config = new ConnectionStringParser().Parse(connectionString);
-//            config.OverrideClientProperties();
             var selectionStrategy = new DefaultClusterHostSelectionStrategy<ConnectionFactoryInfo>();
             var connectionFactory = new ConnectionFactoryWrapper(config, selectionStrategy);
             var newConnectionManager = new RabbitMqConnectionManager(connectionFactory, config);
