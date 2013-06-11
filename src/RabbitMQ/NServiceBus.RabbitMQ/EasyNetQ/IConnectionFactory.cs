@@ -12,7 +12,7 @@
         IHostConfiguration CurrentHost { get; }
         bool Next(Predicate<ConnectionFactoryInfo> guard);
         void Success();
-        void Reset();
+        void Reset(Predicate<ConnectionFactoryInfo> guard);
         bool Succeeded { get; }
     }
 }

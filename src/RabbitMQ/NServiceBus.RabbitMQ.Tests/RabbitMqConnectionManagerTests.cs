@@ -16,7 +16,7 @@
         public void Setup()
         {
             connectionFactory = new Mock<IConnectionFactory>();
-            connectionManager = new RabbitMqConnectionManager(connectionFactory.Object, new ConnectionConfiguration());
+            connectionManager = new RabbitMqConnectionManager(() => connectionFactory.Object, new ConnectionConfiguration());
         }
 
         [Test]

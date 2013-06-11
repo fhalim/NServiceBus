@@ -68,9 +68,9 @@
             return clusterHostSelectionStrategy.Next(guard);
         }
 
-        public virtual void Reset()
+        public virtual void Reset(Predicate<ConnectionFactoryInfo> guard)
         {
-            clusterHostSelectionStrategy.Reset();
+            clusterHostSelectionStrategy.Reset(guard);
         }
 
         public virtual void Success()

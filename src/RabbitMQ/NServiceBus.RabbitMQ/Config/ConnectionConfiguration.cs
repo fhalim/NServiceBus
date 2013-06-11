@@ -60,7 +60,7 @@ namespace NServiceBus.Transports.RabbitMQ.Config
             MaxWaitTimeForConfirms = DefaultWaitTimeForConfirms;
             MaxRetries = 5;
             RetryDelay = TimeSpan.FromSeconds(10);
-            ConnectionCreationTimeout = TimeSpan.FromSeconds(30);
+            ConnectionCreationTimeout = TimeSpan.FromSeconds(40);
             SetDefaultClientProperties();
         }
 

@@ -58,7 +58,7 @@
             }
         }
 
-        [Test, Timeout(3000)]
+        [Test, Timeout(4000)]
         [ExpectedException(typeof (InvalidOperationException))]
         public void It_should_fail_within_time_window_if_no_servers_available()
         {

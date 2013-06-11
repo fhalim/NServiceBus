@@ -39,6 +39,6 @@ namespace EasyNetQ
         /// <summary>
         /// The current node has disconnected and we want to run the strategy again
         /// </summary>
-        void Reset();
+        void Reset(Predicate<T> guard);
     }
 }

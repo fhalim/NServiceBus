@@ -74,8 +74,7 @@
             config.PopulateHosts("localhost:5672");
             
             var selectionStrategy = new DefaultClusterHostSelectionStrategy<ConnectionFactoryInfo>();
-            var connectionFactory = new ConnectionFactoryWrapper(config, selectionStrategy);
-            connectionManager = new RabbitMqConnectionManager(connectionFactory, config);
+            connectionManager = new RabbitMqConnectionManager(() => new ConnectionFactoryWrapper(config, selectionStrategy), config);
 
             unitOfWork = new RabbitMqUnitOfWork { ConnectionManager = connectionManager,UsePublisherConfirms = true,MaxWaitTimeForConfirms = TimeSpan.FromSeconds(10) };
 

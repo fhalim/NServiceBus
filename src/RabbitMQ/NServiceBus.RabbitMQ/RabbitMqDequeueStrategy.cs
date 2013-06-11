@@ -99,7 +99,7 @@
         {
             var cancellationToken = (CancellationToken)obj;
             var connection = ConnectionManager.GetConnection(ConnectionPurpose.Consume);
-
+            Logger.DebugFormat("Consumer connection created to {0}:{1}", connection.HostConfiguration.Host, connection.HostConfiguration.Port);
             using (var channel = connection.CreateModel())
             {
                 channel.BasicQos(0, PrefetchCount, false);

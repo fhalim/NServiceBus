@@ -226,7 +226,7 @@
         }
 
         static ColoredConsoleTarget GetConsoleLoggingTarget() {
-            return new ColoredConsoleTarget {Layout = "${longdate:universalTime=true} | ${logger:shortname=true} | ${message} | ${exception:format=tostring}"};
+            return new ColoredConsoleTarget {Layout = "${longdate:universalTime=true} | ${logger:shortname=true} | ${threadid} | ${message} | ${exception:format=tostring}"};
         }
 
         static NLogViewerTarget GetNLogViewerLoggingTarget() {
@@ -281,8 +281,7 @@
         static RabbitMqConnectionManager SetupRabbitMqConnectionManager(string connectionString) {
             var config = new ConnectionStringParser().Parse(connectionString);
             var selectionStrategy = new DefaultClusterHostSelectionStrategy<ConnectionFactoryInfo>();
-            var connectionFactory = new ConnectionFactoryWrapper(config, selectionStrategy);
-            var newConnectionManager = new RabbitMqConnectionManager(connectionFactory, config);
+            var newConnectionManager = new RabbitMqConnectionManager(() => new ConnectionFactoryWrapper(config, selectionStrategy), config);
             return newConnectionManager;
         }
 

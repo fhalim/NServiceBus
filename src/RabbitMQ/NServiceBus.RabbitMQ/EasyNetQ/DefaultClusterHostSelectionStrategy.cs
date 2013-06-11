@@ -53,22 +53,15 @@ namespace EasyNetQ
 
         public virtual bool Succeeded { get; private set; }
 
-        private bool firstUse = true;
-
         public DefaultClusterHostSelectionStrategy()
         {
             Succeeded = false;
         }
 
-        public virtual void Reset()
+        public virtual void Reset(Predicate<T> guard)
         {
             Succeeded = false;
-            if (firstUse)
-            {
-                firstUse = false;
-                return;
-            }
-            IncrementIndex(null);
+            currentIndex = 0;
         }
 
         private bool IncrementIndex(Predicate<T> guard)
@@ -76,7 +69,7 @@ namespace EasyNetQ
             var incrementSucceeded = true;
             var reachedStart = currentIndex == startIndex;
             currentIndex++;
-            var reachedGuard = (guard != null && currentIndex < items.Count && guard(Current()));
+            var reachedGuard = (currentIndex < items.Count && guard(Current()));
             if (currentIndex == items.Count || reachedGuard)
             {
                 currentIndex = 0;

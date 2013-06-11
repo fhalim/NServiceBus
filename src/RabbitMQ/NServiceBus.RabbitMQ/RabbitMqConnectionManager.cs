@@ -2,30 +2,23 @@
 {
     using System;
     using System.Collections.Concurrent;
-    using System.Collections.Generic;
     using System.Linq;
     using Config;
     using EasyNetQ;
-    using Logging;
 
     public class RabbitMqConnectionManager : IDisposable, IManageRabbitMqConnections
     {
-        public RabbitMqConnectionManager(IConnectionFactory connectionFactory,IConnectionConfiguration connectionConfiguration)
+        public RabbitMqConnectionManager(Func<IConnectionFactory> connectionFactoryFactory,IConnectionConfiguration connectionConfiguration)
         {
-            this.connectionFactory = connectionFactory;
+            this.connectionFactoryFactory = connectionFactoryFactory;
             this.connectionConfiguration = connectionConfiguration;
         }
 
         public IPersistentConnection GetConnection(ConnectionPurpose purpose)
         {
-            //note: The purpose is there so that we/users can add more advanced connection managers in the future
-
-            lock (connectionFactory)
+            lock (connectionFactories)
             {
-                if (connectionFailed)
-                    throw connectionFailedReason;
-
-                return connections.ContainsKey(purpose) ? connections[purpose] : (connections[purpose] = new PersistentConnection(connectionFactory, connectionConfiguration.RetryDelay, connectionConfiguration.ConnectionCreationTimeout, purpose == ConnectionPurpose.Publish));
+                return connections.GetOrAdd(purpose, p => new PersistentConnection(connectionFactories.GetOrAdd(purpose, p2 => connectionFactoryFactory()), connectionConfiguration.RetryDelay, connectionConfiguration.ConnectionCreationTimeout, p == ConnectionPurpose.Publish));
             }
         }
 
@@ -48,7 +41,8 @@
                 foreach (var connection in connections.Where(c => c.Value != null))
                 {
                     connection.Value.Dispose();
-                    connections.Remove(connection.Key);
+                    PersistentConnection removedValue;
+                    connections.TryRemove(connection.Key, out removedValue);
                 }
             }
 
@@ -60,14 +54,11 @@
             Dispose(false);
         }
 
-        readonly IConnectionFactory connectionFactory;
+        readonly Func<IConnectionFactory> connectionFactoryFactory;
         readonly IConnectionConfiguration connectionConfiguration;
 
-        readonly IDictionary<ConnectionPurpose, PersistentConnection> connections = new ConcurrentDictionary<ConnectionPurpose, PersistentConnection>();
-        bool connectionFailed;
-        Exception connectionFailedReason;
+        readonly ConcurrentDictionary<ConnectionPurpose, PersistentConnection> connections = new ConcurrentDictionary<ConnectionPurpose, PersistentConnection>();
+        readonly ConcurrentDictionary<ConnectionPurpose, IConnectionFactory> connectionFactories = new ConcurrentDictionary<ConnectionPurpose, IConnectionFactory>();
         bool disposed;
-
-        static readonly ILog Logger = LogManager.GetLogger(typeof(RabbitMqConnectionManager));
     }
 }

@@ -4,6 +4,7 @@
     using System.Collections.Concurrent;
     using System.Linq;
     using EasyNetQ;
+    using Logging;
     using Settings;
     using global::RabbitMQ.Client;
 
@@ -77,19 +78,21 @@
         public void Publish(IModel channel, Type type, IHostConfiguration hostConfiguration, TransportMessage message, IBasicProperties properties)
         {
             SetupTypeSubscriptions(channel, type, hostConfiguration);
+            Console.WriteLine("Publishing message over {0}:{1}", hostConfiguration.Host, hostConfiguration.Port);
             channel.BasicPublish(ExchangeName(type), String.Empty, true, false, properties, message.Body);
         }
 
         public void Send(IModel channel, Address address, IHostConfiguration hostConfiguration, TransportMessage message, IBasicProperties properties)
         {
             var subscriberName = address.Queue;
+            Console.WriteLine("Sending message over {0}:{1}", hostConfiguration.Host, hostConfiguration.Port);
             CreateQueueAndExchangeForSubscriber(channel, subscriberName, hostConfiguration);
             channel.BasicPublish(subscriberName, String.Empty, true, false, properties, message.Body);
         }
 
         private readonly ConcurrentDictionary<Tuple<Type, IHostConfiguration>, string> typeTopologyConfiguredSet = new ConcurrentDictionary<Tuple<Type, IHostConfiguration>, string>();
         private readonly ConcurrentDictionary<Tuple<string, IHostConfiguration>, string> endpointSubscriptionConfiguredSet = new ConcurrentDictionary<Tuple<string, IHostConfiguration>, string>();
-
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(ConventionalRoutingTopology));
         private static string ExchangeName(Type type)
         {
             return type.Namespace + ":" + type.Name;

@@ -1,7 +1,7 @@
 ﻿namespace NServiceBus.Transports.RabbitMQ.Tests
 {
+    using System;
     using System.IO;
-    using System.Linq;
     using EasyNetQ;
     using NUnit.Framework;
 
@@ -10,6 +10,7 @@
     {
         IClusterHostSelectionStrategy<int> defaultClusterHostSelectionStrategy;
         StringWriter writer;
+        static readonly Predicate<int> DefaultGuard = _ => false;
 
         [SetUp]
         public void SetUp()
@@ -29,13 +30,37 @@
         }
 
         [Test]
+        public void It_should_reset_to_beginning_on_guard()
+        {
+
+            for (var x = 0; x < 5; x++)
+            {
+                var count = 0;
+                defaultClusterHostSelectionStrategy.Reset(i => i > 2);
+                do
+                {
+                    var item = defaultClusterHostSelectionStrategy.Current();
+                    writer.Write(item);
+
+                    count++;
+                    if (count == 3) defaultClusterHostSelectionStrategy.Success();
+
+                } while (defaultClusterHostSelectionStrategy.Next(i => i > 2));
+                writer.Write("_");
+            }
+
+            Assert.AreEqual("012_012_012_012_012_", writer.ToString());
+        }
+
+
+        [Test]
         public void Should_end_after_every_item_has_been_returned()
         {
             do
             {
                 var item = defaultClusterHostSelectionStrategy.Current();
                 writer.Write(item);
-            } while (defaultClusterHostSelectionStrategy.Next(_ => false));
+            } while (defaultClusterHostSelectionStrategy.Next(DefaultGuard));
 
             Assert.AreEqual("0123", writer.ToString());
             Assert.IsFalse(defaultClusterHostSelectionStrategy.Succeeded);
@@ -53,19 +78,19 @@
                 count++;
                 if (count == 2) defaultClusterHostSelectionStrategy.Success();
 
-            } while (defaultClusterHostSelectionStrategy.Next(_ => false));
+            } while (defaultClusterHostSelectionStrategy.Next(DefaultGuard));
 
             Assert.AreEqual("01", writer.ToString());
             Assert.IsTrue(defaultClusterHostSelectionStrategy.Succeeded);
         }
 
         [Test]
-        public void Should_restart_from_next_item_and_then_try_all()
+        public void Should_restart_from_first_item_and_then_try_all()
         {
-            for (var i = 0; i < 10; i++)
+            for (var i = 0; i < 5; i++)
             {
                 var count = 0;
-                defaultClusterHostSelectionStrategy.Reset();
+                defaultClusterHostSelectionStrategy.Reset(DefaultGuard);
                 do
                 {
                     var item = defaultClusterHostSelectionStrategy.Current();
@@ -74,11 +99,11 @@
                     count++;
                     if (count == 3) defaultClusterHostSelectionStrategy.Success();
 
-                } while (defaultClusterHostSelectionStrategy.Next(_ => false));
+                } while (defaultClusterHostSelectionStrategy.Next(DefaultGuard));
                 writer.Write("_");
             }
 
-            Assert.AreEqual("012_301_230_123_012_301_230_123_012_301_", writer.ToString());
+            Assert.AreEqual("012_012_012_012_012_", writer.ToString());
         }
 
     }

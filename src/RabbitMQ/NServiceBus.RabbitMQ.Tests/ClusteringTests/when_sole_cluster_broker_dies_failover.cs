@@ -43,6 +43,7 @@
             // act
             messageReceivedWhenAllNodesUp = SendAndReceiveAMessage(out messageSentWhenAllNodesUp);
             StopNode(1);
+            Console.WriteLine("After main server failure");
             SendMessage(out messageSentAfterClusterFailure);
             
         }

@@ -27,11 +27,13 @@ namespace NServiceBus.Transports.RabbitMQ
             {
                 connectionGuard = h => h.HostConfiguration.IsFailover;
             }
+            this.failover = failover;
             TryToConnect(new AutoResetEvent(false), null);
         }
 
         public event Action Connected;
         public event Action Disconnected;
+        
 
         public IModel CreateModel()
         {
@@ -44,11 +46,19 @@ namespace NServiceBus.Transports.RabbitMQ
 
         bool InitializeConnection()
         {
-            var evt = new AutoResetEvent(false);
+            var origEvt = Interlocked.CompareExchange(ref connectWaitHandle, new AutoResetEvent(false), null);
+           
             if (IsConnected)
                 return true;
-            StartTryToConnect(evt);
-            evt.WaitOne(connectionCreationTimeout);
+
+            if (origEvt == null)
+            {
+
+                StartTryToConnect(connectWaitHandle);
+            }
+            connectWaitHandle.WaitOne(connectionCreationTimeout);
+
+            
             return IsConnected;
         }
 
@@ -72,7 +82,15 @@ namespace NServiceBus.Transports.RabbitMQ
 
         void StartTryToConnect(EventWaitHandle evt)
         {
-            var timer = new Timer(t => TryToConnect(evt, t));
+            var timer = new Timer(t => { try
+            {
+                TryToConnect(evt, t);
+            }
+            finally
+            {
+                connectWaitHandle = null;
+            }
+            });
             timer.Change(Convert.ToInt32(retryDelay.TotalMilliseconds), Timeout.Infinite);
         }
 
@@ -90,7 +108,7 @@ namespace NServiceBus.Transports.RabbitMQ
                 return;
             }
 
-            connectionFactory.Reset();
+            connectionFactory.Reset(connectionGuard);
             do
             {
                 try
@@ -113,10 +131,10 @@ namespace NServiceBus.Transports.RabbitMQ
                 connection.ConnectionShutdown += OnConnectionShutdown;
 
                 OnConnected();
-                Logger.InfoFormat("Connected to RabbitMQ. Broker: '{0}', Port: {1}, VHost: '{2}'",
+                Logger.InfoFormat("Connected to RabbitMQ. Broker: '{0}', Port: {1}, VHost: '{2}', Failover:{3}",
                                   connectionFactory.CurrentHost.Host,
                                   connectionFactory.CurrentHost.Port,
-                                  connectionFactory.Configuration.VirtualHost);
+                                  connectionFactory.Configuration.VirtualHost, failover);
             }
             else
             {
@@ -128,12 +146,12 @@ namespace NServiceBus.Transports.RabbitMQ
 
         void LogException(Exception exception)
         {
-            Logger.ErrorFormat("Failed to connect to Broker: '{0}', Port: {1} VHost: '{2}'. " +
+            Logger.ErrorFormat("Failed to connect to Broker: '{0}', Port: {1} VHost: '{2}'. , Failover:{4} " +
                                "ExceptionMessage: '{3}'",
                                connectionFactory.CurrentHost.Host,
                                connectionFactory.CurrentHost.Port,
                                connectionFactory.Configuration.VirtualHost,
-                               exception.Message);
+                               exception.Message, failover);
         }
 
         void OnConnectionShutdown(IConnection _, ShutdownEventArgs reason)
@@ -318,13 +336,15 @@ namespace NServiceBus.Transports.RabbitMQ
             Dispose(false);
         }
 
-        bool disposed;
-        IConnection connection;
+        volatile bool disposed;
+        volatile IConnection connection;
         readonly IConnectionFactory connectionFactory;
         readonly TimeSpan retryDelay;
         readonly TimeSpan connectionCreationTimeout;
         readonly Predicate<ConnectionFactoryInfo> connectionGuard;
 
-        static readonly ILog Logger = LogManager.GetLogger(typeof (RabbitMqConnectionManager));
+        static readonly ILog Logger = LogManager.GetLogger(typeof (PersistentConnection));
+        readonly bool failover;
+        volatile EventWaitHandle connectWaitHandle;
     }
 }
