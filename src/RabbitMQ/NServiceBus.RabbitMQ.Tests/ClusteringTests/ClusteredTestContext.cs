@@ -128,7 +128,11 @@
             var currentUserName = Process.GetCurrentProcess().StartInfo.UserName;
             foreach (var process in Process.GetProcessesByName("erl"))
             {
-                process.Kill();
+                try
+                {
+                    process.Kill();
+                }catch (Exception){}
+                
             }
             
         }

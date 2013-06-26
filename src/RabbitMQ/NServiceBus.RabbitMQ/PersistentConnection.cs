@@ -28,7 +28,7 @@ namespace NServiceBus.Transports.RabbitMQ
                 connectionGuard = h => h.HostConfiguration.IsFailover;
             }
             this.failover = failover;
-            TryToConnect(new AutoResetEvent(false), null);
+            InitializeConnectionAsynchronously();
         }
 
         public event Action Connected;
@@ -37,29 +37,42 @@ namespace NServiceBus.Transports.RabbitMQ
 
         public IModel CreateModel()
         {
-            if (!InitializeConnection())
+            if (!InitializeConnectionSynchronously())
             {
                 throw new InvalidOperationException("Rabbit server is not connected.");
             }
             return connection.CreateModel();
         }
 
-        bool InitializeConnection()
+        bool InitializeConnectionSynchronously()
         {
-            var origEvt = Interlocked.CompareExchange(ref connectWaitHandle, new AutoResetEvent(false), null);
-           
             if (IsConnected)
                 return true;
-
-            if (origEvt == null)
-            {
-
-                StartTryToConnect(connectWaitHandle);
-            }
-            connectWaitHandle.WaitOne(connectionCreationTimeout);
-
-            
+            InitializeConnectionAsynchronously();
+            connectWaitHandle.Wait(connectionCreationTimeout);
             return IsConnected;
+        }
+
+        void InitializeConnectionAsynchronously()
+        {
+            bool iAmConnecting;
+            try
+            {
+                iAmConnecting = connectingSemaphone.Wait(TimeSpan.Zero);
+            }
+            catch (Exception ex)
+            {
+                iAmConnecting = false;
+            }
+
+            if (iAmConnecting)
+            {
+                StartTryToConnect();
+            }
+            else
+            {
+                Logger.Debug("Waiting on original wait handle");
+            }
         }
 
         public bool IsConnected
@@ -80,21 +93,27 @@ namespace NServiceBus.Transports.RabbitMQ
         }
 
 
-        void StartTryToConnect(EventWaitHandle evt)
+        void StartTryToConnect()
         {
             var timer = new Timer(t => { try
             {
-                TryToConnect(evt, t);
+                TryToConnect(t);
             }
             finally
             {
-                connectWaitHandle = null;
+                FinishedConnecting();
             }
             });
             timer.Change(Convert.ToInt32(retryDelay.TotalMilliseconds), Timeout.Infinite);
         }
 
-        void TryToConnect(EventWaitHandle evt, object timer)
+        void FinishedConnecting()
+        {
+            connectingSemaphone.Release();
+            connectWaitHandle.Reset();
+        }
+
+        void TryToConnect(object timer)
         {
             if (timer != null)
             {
@@ -104,17 +123,19 @@ namespace NServiceBus.Transports.RabbitMQ
             Logger.Debug("Trying to connect");
             if (disposed)
             {
-                evt.Set();
+                FinishedConnecting();
                 return;
             }
 
             connectionFactory.Reset(connectionGuard);
             do
             {
+                var errored = true;
                 try
                 {
                     connection = connectionFactory.CreateConnection();
                     connectionFactory.Success();
+                    errored = false;
                 }
                 catch (System.Net.Sockets.SocketException socketException)
                 {
@@ -124,6 +145,7 @@ namespace NServiceBus.Transports.RabbitMQ
                 {
                     LogException(brokerUnreachableException);
                 }
+                Logger.InfoFormat("Could {2} connect to {0}:{1}. Failover: {3}", connectionFactory.CurrentHost.Host, connectionFactory.CurrentHost.Port, errored ? "not":String.Empty, failover);
             } while (!connectionFactory.Succeeded && connectionFactory.Next(connectionGuard));
 
             if (connectionFactory.Succeeded)
@@ -139,9 +161,8 @@ namespace NServiceBus.Transports.RabbitMQ
             else
             {
                 Logger.ErrorFormat("Failed to connected to any Broker. Retrying in {0}", retryDelay);
-                StartTryToConnect(evt);
+                StartTryToConnect();
             }
-            evt.Set();
         }
 
         void LogException(Exception exception)
@@ -164,7 +185,7 @@ namespace NServiceBus.Transports.RabbitMQ
 
             Logger.InfoFormat("Disconnected from RabbitMQ Broker, reason: {0} , going to reconnect", reason);
 
-            TryToConnect(new AutoResetEvent(false), null);
+            InitializeConnectionAsynchronously();
         }
 
         public void OnConnected()
@@ -315,7 +336,7 @@ namespace NServiceBus.Transports.RabbitMQ
                 {
                     if (connection.IsOpen)
                     {
-                        Close(5000);
+                        Close(10000);
                     }
 
                     connection.Dispose();
@@ -345,6 +366,7 @@ namespace NServiceBus.Transports.RabbitMQ
 
         static readonly ILog Logger = LogManager.GetLogger(typeof (PersistentConnection));
         readonly bool failover;
-        volatile EventWaitHandle connectWaitHandle;
+        private readonly ManualResetEventSlim connectWaitHandle = new ManualResetEventSlim(false);
+        private readonly SemaphoreSlim connectingSemaphone = new SemaphoreSlim(1);
     }
 }
