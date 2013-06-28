@@ -3,6 +3,7 @@
     using System;
     using System.Linq;
     using System.Text;
+    using System.Threading;
     using FluentAssertions;
     using NUnit.Framework;
     using RabbitMQ.Routing;

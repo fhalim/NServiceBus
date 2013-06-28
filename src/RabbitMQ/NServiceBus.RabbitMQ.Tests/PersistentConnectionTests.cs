@@ -5,6 +5,7 @@
     using System.Net.Sockets;
     using Config;
     using EasyNetQ;
+    using Logging;
     using Logging.Loggers.NLogAdapter;
     using Moq;
     using NLog.Targets;
@@ -65,22 +66,34 @@
                 firstConnection.Setup(c => c.IsOpen).Returns(false);
                 secondConnection.Setup(c => c.IsOpen).Returns(true);
                 connFactoryMock.Setup(f => f.CreateConnection()).Returns(secondConnection.Object);
+                Console.WriteLine("Swapped in another connection");
                 pc.CreateModel();
                 connFactoryMock.Verify(f => f.CreateConnection(), Times.Exactly(2),
                                         "Should have gotten a new connection because of failure");
             }
         }
 
-        [Test, Timeout(4000)]
+        [Test, Timeout(5000)]
         [ExpectedException(typeof (InvalidOperationException))]
         public void It_should_fail_within_time_window_if_no_servers_available()
         {
+            Console.WriteLine("Starting " + DateTime.Now.ToString("hh-mm-ss.FFFF"));
             connFactoryMock.Setup(m => m.CreateConnection()).Throws(new SocketException(12));
             connFactoryMock.Setup(m => m.Succeeded).Returns(false);
-            using (var pc = new PersistentConnection(connFactoryMock.Object, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3), true))
+            try
             {
-                pc.CreateModel();
+                using (
+                    var pc = new PersistentConnection(connFactoryMock.Object, TimeSpan.FromSeconds(1),
+                                                      TimeSpan.FromSeconds(3), true))
+                {
+                    pc.CreateModel();
+                }
             }
+            finally
+            {
+                Console.WriteLine("Finished " + DateTime.Now.ToString("hh-mm-ss.FFFF"));
+            }
+            
         }
     }
 }

@@ -2,6 +2,7 @@ namespace NServiceBus.Transports.RabbitMQ
 {
     using System;
     using System.Threading;
+    using System.Threading.Tasks;
     using EasyNetQ;
     using System.Collections;
     using Logging;
@@ -16,6 +17,7 @@ namespace NServiceBus.Transports.RabbitMQ
     {
         public PersistentConnection(IConnectionFactory connectionFactory, TimeSpan retryDelay, TimeSpan connectionCreationTimeout, bool failover)
         {
+            connectingSemaphone = new SemaphoreSlim(1);
             this.connectionFactory = connectionFactory;
             this.retryDelay = retryDelay;
             this.connectionCreationTimeout = connectionCreationTimeout;
@@ -60,14 +62,14 @@ namespace NServiceBus.Transports.RabbitMQ
             {
                 iAmConnecting = connectingSemaphone.Wait(TimeSpan.Zero);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 iAmConnecting = false;
             }
 
             if (iAmConnecting)
             {
-                StartTryToConnect();
+                TryToConnect(null);
             }
             else
             {
@@ -93,17 +95,24 @@ namespace NServiceBus.Transports.RabbitMQ
         }
 
 
-        void StartTryToConnect()
+        void StartTryToConnect(object timer)
         {
-            var timer = new Timer(t => { try
-            {
-                TryToConnect(t);
-            }
-            finally
-            {
-                FinishedConnecting();
-            }
-            });
+            Task.Factory.StartNew(() =>
+                {
+                    try
+                    {
+                        TryToConnect(timer);
+                    }
+                    finally
+                    {
+                        FinishedConnecting();
+                    }
+
+                });
+        }
+        void TryToConnectLater()
+        {
+            var timer = new Timer(StartTryToConnect);
             timer.Change(Convert.ToInt32(retryDelay.TotalMilliseconds), Timeout.Infinite);
         }
 
@@ -135,6 +144,7 @@ namespace NServiceBus.Transports.RabbitMQ
                 {
                     connection = connectionFactory.CreateConnection();
                     connectionFactory.Success();
+                    FinishedConnecting();
                     errored = false;
                 }
                 catch (System.Net.Sockets.SocketException socketException)
@@ -161,7 +171,7 @@ namespace NServiceBus.Transports.RabbitMQ
             else
             {
                 Logger.ErrorFormat("Failed to connected to any Broker. Retrying in {0}", retryDelay);
-                StartTryToConnect();
+                TryToConnectLater();
             }
         }
 
@@ -367,6 +377,6 @@ namespace NServiceBus.Transports.RabbitMQ
         static readonly ILog Logger = LogManager.GetLogger(typeof (PersistentConnection));
         readonly bool failover;
         private readonly ManualResetEventSlim connectWaitHandle = new ManualResetEventSlim(false);
-        private readonly SemaphoreSlim connectingSemaphone = new SemaphoreSlim(1);
+        private readonly SemaphoreSlim connectingSemaphone;
     }
 }
