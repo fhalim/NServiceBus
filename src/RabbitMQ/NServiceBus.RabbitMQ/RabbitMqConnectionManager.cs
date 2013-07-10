@@ -16,10 +16,7 @@
 
         public IPersistentConnection GetConnection(ConnectionPurpose purpose)
         {
-            lock (connectionFactories)
-            {
-                return connections.GetOrAdd(purpose, p => new PersistentConnection(connectionFactories.GetOrAdd(purpose, p2 => connectionFactoryFactory()), connectionConfiguration.RetryDelay, connectionConfiguration.ConnectionCreationTimeout, p == ConnectionPurpose.Publish));
-            }
+            return connections.GetOrAdd(purpose, p => new PersistentConnection(connectionFactories.GetOrAdd(purpose, p2 => connectionFactoryFactory()), connectionConfiguration.RetryDelay, connectionConfiguration.ConnectionCreationTimeout, p == ConnectionPurpose.Publish));
         }
 
         public void Dispose()

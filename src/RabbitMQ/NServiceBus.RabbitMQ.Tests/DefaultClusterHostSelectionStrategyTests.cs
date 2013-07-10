@@ -21,6 +21,7 @@
         [Test]
         public void It_should_honor_guard()
         {
+            defaultClusterHostSelectionStrategy.Reset(i => i > 2);
             do
             {
                 var item = defaultClusterHostSelectionStrategy.Current();

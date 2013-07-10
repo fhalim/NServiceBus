@@ -3,7 +3,6 @@
     using System;
     using System.Linq;
     using System.Text;
-    using System.Threading;
     using FluentAssertions;
     using NUnit.Framework;
     using RabbitMQ.Routing;
@@ -85,8 +84,9 @@
         }
         static T InConnection<T>(string hostname, Func<IConnection, IModel, T> callback)
         {
-            var host = hostname.Split(':')[0];
-            var port = Int32.Parse(hostname.Split(':')[1]);
+            var hostNameComponents = hostname.Split(':');
+            var host = hostNameComponents[0];
+            var port = Int32.Parse(hostNameComponents[1]);
             using (var connection = new ConnectionFactory { HostName = host, Port = port }.CreateConnection())
             {
                 using (var model = connection.CreateModel())
